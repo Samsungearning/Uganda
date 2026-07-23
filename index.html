@@ -1,1 +1,783 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SAMSUNG EARNING PLATFORM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"/>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, update, push, onValue, off, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAaY2U3vOnByMrjhf4np-DsFvrXCN3Zbbc",
+      authDomain: "samsungearning-78ab1.firebaseapp.com",
+      databaseURL: "https://samsungearning-78ab1-default-rtdb.firebaseio.com",
+      projectId: "samsungearning-78ab1",
+      storageBucket: "samsungearning-78ab1.firebasestorage.app",
+      messagingSenderId: "927792398209",
+      appId: "1:927792398209:web:2cdb7686e68384888df280"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    window._FB = { auth, db, ref, set, get, update, push, onValue, off, remove };
+    window._currentUser = null; window._userData = null;
+
+    window.PACKAGES = [
+      { id:'p1',  name:'Galaxy A05',      price:15000,    daily:3000,     days:60,  group:1,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a055fzkdmid/gallery/levant-galaxy-a05-sm-a055fzkdmid-thumb-538182131' },
+      { id:'p2',  name:'Galaxy A15',      price:30000,    daily:7000,     days:60,  group:1,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a155fzkdmid/gallery/levant-galaxy-a15-sm-a155fzkdmid-thumb-539432698' },
+      { id:'p3',  name:'Galaxy A25',      price:50000,    daily:12500,    days:180, group:2,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a256ezydmid/gallery/levant-galaxy-a25-5g-sm-a256ezydmid-thumb-539432788' },
+      { id:'p4',  name:'Galaxy A35',      price:100000,   daily:26000,    days:180, group:2,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a356ezydmid/gallery/levant-galaxy-a35-5g-sm-a356ezydmid-thumb-540016756' },
+      { id:'p5',  name:'Galaxy A55',      price:150000,   daily:40000,    days:180, group:2,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a556ezydmid/gallery/levant-galaxy-a55-5g-sm-a556ezydmid-thumb-540016922' },
+      { id:'p6',  name:'Galaxy S23 FE',   price:300000,   daily:90000,    days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s711blbdmid/gallery/levant-galaxy-s23-fe-sm-s711blbdmid-thumb-537998015' },
+      { id:'p7',  name:'Galaxy S24',      price:500000,   daily:160000,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s921bzkdmid/gallery/levant-galaxy-s24-sm-s921bzkdmid-thumb-539432418' },
+      { id:'p8',  name:'Galaxy S24+',     price:800000,   daily:280200,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s926bzkdmid/gallery/levant-galaxy-s24-plus-sm-s926bzkdmid-thumb-539432538' },
+      { id:'p9',  name:'Galaxy S24 Ultra',price:1200000,  daily:450000,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s928bzkhmid/gallery/levant-galaxy-s24-ultra-sm-s928bzkhmid-thumb-539432638' },
+      { id:'p10', name:'Galaxy Z Flip6',  price:1300000,  daily:600000,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-f741bzadmid/gallery/levant-galaxy-z-flip6-sm-f741bzadmid-thumb-540013498' },
+      { id:'p11', name:'Galaxy Z Fold6 VIP', price:2000000, daily:8805000, days:210,group:3, img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-f956bzsdmid/gallery/levant-galaxy-z-fold6-sm-f956bzsdmid-thumb-540013598' },
+    ];
+
+    function fmtUGX(n){ return (Math.round(n||0)).toLocaleString()+' UGX'; }
+    function genCode(len=8){ return Math.random().toString(36).substr(2,len).toUpperCase(); }
+    function getReferralLink(code){ return window.location.origin + window.location.pathname + '?ref='+code; }
+    function getReferralFromURL(){ const u = new URL(window.location.href); return u.searchParams.get('ref') || null; }
+    window.fmtUGX = fmtUGX; window.genCode = genCode; window.getReferralLink = getReferralLink; window.getReferralFromURL = getReferralFromURL;
+
+    onAuthStateChanged(auth, async (user) => {
+      document.getElementById('init-loading').style.display = 'none';
+      if(user){
+        window._currentUser = user;
+        const snap = await get(ref(db,'users/'+user.uid)); if(snap.exists()) window._userData = snap.val();
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'flex';
+        showPage('home'); renderDashboard();
+      } else {
+        window._currentUser = null; window._userData = null;
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('app-screen').style.display = 'none';
+      }
+    });
+
+    // ============ AUTH ============
+    window.doRegister = async function(){
+      const name = document.getElementById('reg-name').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const pass = document.getElementById('reg-pass').value.trim();
+      if(!name||!phone||!pass){ alert('Fill all'); return; }
+      const email = phone+'@samsung-earn.com';
+      showLoader(true);
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(cred.user, {displayName: name});
+      const uid = cred.user.uid; const code = genCode(8); const refCode = getReferralFromURL(); let referredBy = null;
+      if(refCode){ const rsSnap = await get(ref(db,'referralCodes/'+refCode)); if(rsSnap.exists()) referredBy = rsSnap.val().uid; }
+      await set(ref(db,'users/'+uid), { name, phone, email, uid, wallet: 7000, todayEarnings:0, totalEarnings:0, activeInvestments:0, totalInvestments:0, referralEarnings:0, totalWithdrawals:0, referralCode: code, referredBy: referredBy || null, hasPurchased:false, createdAt: Date.now() });
+      await set(ref(db,'referralCodes/'+code), {uid, name, phone});
+      if(referredBy){ await push(ref(db,'referrals/'+referredBy), {childUid: uid, childName: name, childPhone: phone, paid:false, at: Date.now()}); }
+      showLoader(false); alert('Account created +7000 UGX');
+    };
+
+    window.doLogin = async function(){
+      const phone = document.getElementById('login-phone').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      const email = phone+'@samsung-earn.com';
+      showLoader(true); await signInWithEmailAndPassword(auth, email, pass); showLoader(false);
+    };
+
+    window.doLogout = async function(){ await signOut(auth); };
+
+    // ============ PAGES + RENDER ============
+    window.showPage = function(page){
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      document.getElementById('page-'+page).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelector(`.nav-btn[data-page="${page}"]`).classList.add('active');
+      if(page==='products') renderPackages();
+      if(page==='myproducts') renderMyProducts();
+      if(page==='team') renderTeam();
+      if(page==='withdraw') { renderWithdrawalHistory(); populateWalletWithdraw(); }
+      if(page==='admin') { renderAdminPayments(); renderAdminWithdrawals(); renderAdminReferrals(); }
+    };
+
+    window.renderDashboard = function(){
+      const d = window._userData; if(!d) return;
+      document.getElementById('home-name').textContent = d.name;
+      document.getElementById('home-wallet').textContent = fmtUGX(d.wallet);
+      document.getElementById('stat-today').textContent = fmtUGX(d.todayEarnings);
+      document.getElementById('stat-total').textContent = fmtUGX(d.totalEarnings);
+    };
+
+    window.renderPackages = function(){
+      const cont = document.getElementById('packages-list'); cont.innerHTML='';
+      PACKAGES.forEach(p=>{ 
+        cont.innerHTML += `<div class="card p-3 mb-3 rounded-xl">
+          <img src="${p.img}" class="w-full h-24 object-contain mb-2 rounded">
+          <div class="font-bold">${p.name}</div>
+          <div class="text-sm">Price: ${fmtUGX(p.price)} | Daily: ${fmtUGX(p.daily)}</div>
+          <button onclick="submitPayment('${p.id}')" class="btn-primary w-full mt-2 py-2 rounded-xl">Buy Now</button>
+        </div>`; 
+      });
+    };
+
+    window.submitPayment = async function(pkgId){
+      const uid = window._currentUser.uid; const pkg = PACKAGES.find(p=>p.id===pkgId);
+      const payRef = push(ref(db,'pendingPayments'));
+      await set(payRef, {
+        userId:uid, userName:window._userData.name, packageId:pkgId, packageName:pkg.name,
+        amount:pkg.price, dailyEarning:pkg.daily, days:pkg.days,
+        submittedAt:Date.now(), status:'pending'
+      });
+      alert('Payment submitted. Wait for admin');
+    };
+
+    window.renderMyProducts = async function(){
+      const uid = window._currentUser.uid; const cont = document.getElementById('my-products-list');
+      const snap = await get(ref(db,'packages')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,p])=>p.userId===uid).forEach(([k,p])=>{
+        const daysLeft = Math.max(0, Math.ceil((p.expiryDate - Date.now())/86400000));
+        html += `<div class="card p-3 mb-3 rounded-xl"><div>${p.packageName}</div><div>${daysLeft} days left</div></div>`;
+      });
+      cont.innerHTML = html||'No packages yet';
+    };
+
+    // ============ WITHDRAW ============
+    window.populateWalletWithdraw = function(){
+      const d = window._userData; const el = document.getElementById('wd-wallet-info');
+      if(d && d.walletPhone){ el.innerHTML = `${d.walletType}: ${d.walletPhone}`; } 
+      else { el.innerHTML = 'No wallet. Add in Mine'; }
+    };
+
+    window.doWithdraw = async function(){
+      const amt = parseFloat(document.getElementById('wd-amount').value)||0;
+      if(amt<7000){ alert('Min 7000'); return; }
+      if(window._userData.wallet < amt){ alert('Low balance'); return; }
+      const wdRef = push(ref(db,'withdrawals'));
+      await set(wdRef, {
+        userId:window._currentUser.uid, userName:window._userData.name, userPhone:window._userData.phone,
+        amount:amt, netAmount:Math.round(amt*0.82), status:'pending', requestedAt:Date.now()
+      });
+      alert('Withdrawal requested'); document.getElementById('wd-amount').value='';
+    };
+
+    window.renderWithdrawalHistory = async function(){
+      const uid = window._currentUser.uid; const cont = document.getElementById('wd-history-list');
+      const snap = await get(ref(db,'withdrawals')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,w])=>w.userId===uid).reverse().forEach(([k,w])=>{
+        html += `<div class="card p-2 mb-2 text-sm">${fmtUGX(w.amount)} - ${w.status}</div>`;
+      });
+      cont.innerHTML = html||'No withdrawals';
+    };
+
+    // ============ TEAM + REFERRAL ============
+    window.renderTeam = async function(){
+      const uid = window._currentUser.uid; const cont = document.getElementById('team-stats');
+      const snap = await get(ref(db,'referrals/'+uid)); let html=''; let count=0;
+      if(snap.exists()) Object.entries(snap.val()).forEach(([k,r])=>{
+        count++;
+        html += `<div class="card p-3 mb-2 rounded-xl text-sm">
+          <div>Name: ${r.childName}</div>
+          <div>Phone: ${r.childPhone}</div>
+          <div>Status: ${r.paid?'✅ Paid':'⏳ Unpaid'}</div>
+        </div>`;
+      });
+      cont.innerHTML = `<div class="font-bold mb-2">Total Referrals: ${count}</div>` + html;
+      document.getElementById('referral-link').value = getReferralLink(window._userData.referralCode);
+    };
+
+    // ============ ADMIN FUNCTIONS ============
+    window.adminDeleteMessage = async function(path, key){
+      if(confirm('Delete?')){ await remove(ref(db, path+'/'+key)); alert('Deleted'); renderAdminPayments(); renderAdminWithdrawals(); }
+    };
+
+    window.adminApprovePayment = async function(key){
+      const snap = await get(ref(db,'pendingPayments/'+key)); if(!snap.exists()) return;
+      const pp = snap.val(); const uid = pp.userId; const now = Date.now(); const expiry = now + pp.days * 86400000;
+      const pkgRef = push(ref(db,'packages'));
+      await set(pkgRef, {
+        userId:uid, packageId:pp.packageId, packageName:pp.packageName, amount:pp.amount, dailyEarning:pp.dailyEarning, days:pp.days,
+        startDate:now, expiryDate:expiry, lastPaidAt:now, status:'active'
+      });
+      await update(ref(db,'pendingPayments/'+key), {status:'approved'});
+      await update(ref(db,'users/'+uid), {activeInvestments: (window._userData.activeInvestments||0)+1, totalInvestments: (window._userData.totalInvestments||0)+1, hasPurchased:true, newUserBonusLocked:false});
+      await payReferralCommissions(uid, pp.amount);
+      alert('Approved + Referrals Paid'); renderAdminPayments();
+    };
+
+    window.payReferralCommissions = async function(buyerUid, investAmount){
+      const snap = await get(ref(db,'users/'+buyerUid)); if(!snap.exists()) return;
+      const buyer = snap.val(); let current = buyer.referredBy; let level = 1; const pcts = [0.30, 0.02, 0.01];
+      while(current && level<=3){
+        const uSnap = await get(ref(db,'users/'+current)); if(!uSnap.exists()) break;
+        const amount = Math.round(investAmount * pcts[level-1]);
+        const ud = uSnap.val();
+        await update(ref(db,'users/'+current), {
+          wallet:(ud.wallet||0)+amount, referralEarnings:(ud.referralEarnings||0)+amount, totalEarnings:(ud.totalEarnings||0)+amount
+        });
+        current = ud.referredBy; level++;
+      }
+    };
+
+    window.adminMarkReferralPaid = async function(adminUid, refKey, childUid, amount){
+      const uSnap = await get(ref(db,'users/'+childUid)); if(!uSnap.exists()) return;
+      const ud = uSnap.val();
+      await update(ref(db,'users/'+childUid), {
+        wallet:(ud.wallet||0)+amount, referralEarnings:(ud.referralEarnings||0)+amount, totalEarnings:(ud.totalEarnings||0)+amount
+      });
+      await update(ref(db,'referrals/'+adminUid+'/'+refKey), {paid: true, paidAt: Date.now()});
+      alert('Paid '+fmtUGX(amount)+' to '+ud.name); renderAdminReferrals();
+    };
+
+    window.adminApproveWithdrawal = async function(key){
+      const snap = await get(ref(db,'withdrawals/'+key)); if(!snap.exists()) return;
+      const wd = snap.val(); const uSnap = await get(ref(db,'users/'+wd.userId)); const ud = uSnap.val();
+      await update(ref(db,'users/'+wd.userId), {
+        wallet: Math.max(0,(ud.wallet||0)-wd.amount), totalWithdrawals:(ud.totalWithdrawals||0)+wd.netAmount
+      });
+      await update(ref(db,'withdrawals/'+key), {status:'approved'}); alert('Withdrawal Approved'); renderAdminWithdrawals();
+    };
+
+    // ============ ADMIN RENDERS ============
+    window.renderAdminPayments = async function(){
+      const cont = document.getElementById('admin-payments-list'); const snap = await get(ref(db,'pendingPayments')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,p])=>p.status==='pending').forEach(([k,p])=>{
+        html += `<div class="card p-3 mb-2 rounded-xl">
+          <div>${p.userName} - ${fmtUGX(p.amount)}</div>
+          <button onclick="adminApprovePayment('${k}')" class="bg-green-700 text-xs px-3 py-1 rounded mt-1">Approve</button>
+          <button onclick="adminDeleteMessage('pendingPayments','${k}')" class="bg-red-700 text-xs px-3 py-1 rounded mt-1 ml-2">Delete</button>
+        </div>`;
+      }); cont.innerHTML = html||'No pending';
+    };
+
+    window.renderAdminWithdrawals = async function(){
+      const cont = document.getElementById('admin-withdrawals-list'); const snap = await get(ref(db,'withdrawals')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,w])=>w.status==='pending').forEach(([k,w])=>{
+        html += `<div class="card p-3 mb-2 rounded-xl">
+          <div>${w.userName} - ${fmtUGX(w.amount)}</div>
+          <button onclick="adminApproveWithdrawal('${k}')" class="bg-green-700 text-xs px-3 py-1 rounded mt-1">Pay</button>
+          <button onclick="adminDeleteMessage('withdrawals','${k}')" class="bg-red-700 text-xs px-3 py-1 rounded mt-1 ml-2">Delete</button>
+        </div>`;
+      }); cont.innerHTML = html||'No pending';
+    };
+
+    window.renderAdminReferrals = async function(){
+      const cont = document.getElementById('admin-referrals-list'); const snap = await get(ref(db,'referrals')); let html='<h3 class="font-bold mt-4">Referrals</h3>';
+      if(snap.exists()) Object.entries(snap.val()).forEach(([adminUid, list])=>{
+        Object.entries(list).forEach(([key, r])=>{
+          const commission = 1000;
+          html += `<div class="card p-3 mb-2 rounded-xl text-sm">
+            <div>Referred: ${r.childName} - ${r.childPhone}</div>
+            <div>Status: ${r.paid?'✅ Paid':'⏳ Unpaid'}</div>
+            ${!r.paid ? `<button onclick="adminMarkReferralPaid('${adminUid}','${key}','${r.childUid}',${commission})" class="bg-blue-700 text-xs px-3 py-1 rounded mt-1">Mark Paid ${fmtUGX(commission)}</button>` : ''}
+          </div>`;
+        });
+      }); cont.innerHTML = html;
+    };
+
+    window.showLoader = function(v){ document.getElementById('loader-overlay').classList.toggle('show', v); };
+  </script>
+
+  <style>
+    body{ font-family:'Inter',sans-serif; background:#030d1f; color:#fff; margin:0; }
+    .card{ background:rgba(20,40,160,0.1); border:1px solid rgba(20,40,160,0.25); }
+    .btn-primary{ background:linear-gradient(135deg,#1428A0,#0d5cda); color:#fff; font-weight:700; border:none; cursor:pointer; }
+    .page{ display:none; flex-direction:column; overflow-y:auto; flex:1; padding:16px; padding-bottom:80px; }
+    .page.active{ display:flex; }
+    .nav-btn{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 0; cursor:pointer; color:#4a5568; font-size:10px; gap:3px; border:none; background:none; }
+    .nav-btn.active{ color:#1d6af5; }
+    .input-field{ background:rgba(20,40,160,0.12); border:1px solid rgba(29,106,245,0.3); border-radius:12px; padding:14px 16px; color:#fff; width:100%; margin-bottom:10px; }
+    .loader-overlay{ position:fixed; inset:0; background:rgba(3,13,31,0.85); z-index:2000; display:none; align-items:center; justify-content:center; }
+    .loader-overlay.show{ display:flex; }
+  </style>
+</head>
+<body>
+
+<div id="init-loading" style="position:fixed;inset:0;background:#030d1f;z-index:9999;display:flex;align-items:center;justify-content:center;">Loading...</div>
+<div id="loader-overlay" class="loader-overlay">Loading...</div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none; flex-direction:column; min-height:100vh; padding:20px;">
+  <h1 class="text-2xl font-black text-center mb-5">SAMSUNG EARNING</h1>
+  <div id="login-form">
+    <input id="login-phone" type="tel" placeholder="Phone 07XXXXXXXX" class="input-field"/>
+    <input id="login-pass" type="password" placeholder="Password" class="input-field"/>
+    <button onclick="doLogin()" class="btn-primary w-full py-4 rounded-2xl">Login</button>
+  </div>
+  <div id="register-form" class="mt-5">
+    <input id="reg-name" type="text" placeholder="Full Name" class="input-field"/>
+    <input id="reg-phone" type="tel" placeholder="Phone 07XXXXXXXX" class="input-field"/>
+    <input id="reg-pass" type="password" placeholder="Password" class="input-field"/>
+    <button onclick="doRegister()" class="btn-primary w-full py-4 rounded-2xl">Register</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none; flex-direction:column; height:100vh;">
+  <div style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+    
+    <div id="page-home" class="page active">
+      <h1 class="text-2xl font-black">Hi, <span id="home-name">User</span></h1>
+      <div class="card rounded-2xl p-4 mt-3">
+        <div>Balance: <span id="home-wallet">0 UGX</span></div>
+        <div>Today: <span id="stat-today">0 UGX</span></div>
+        <div>Total: <span id="stat-total">0 UGX</span></div>
+      </div>
+    </div>
+
+    <div id="page-products" class="page"><h2 class="text-xl font-black mb-3">Products</h2><div id="packages-list"></div></div>
+    <div id="page-myproducts" class="page"><h2 class="text-xl font-black mb-3">My Products</h2><div id="my-products-list"></div></div>
+    <div id="page-team" class="page"><h2 class="text-xl font-black mb-3">Team</h2><input id="referral-link" readonly class="input-field"><div id="team-stats"></div></div>
+    <div id="page-withdraw" class="page">
+      <h2 class="text-xl font-black mb-3">Withdraw</h2>
+      <div id="wd-wallet-info" class="card p-3 mb-3"></div>
+      <input id="wd-amount" type="number" placeholder="Amount Min 7000" class="input-field"/>
+      <button onclick="doWithdraw()" class="btn-primary w-full py-3 rounded-xl">Withdraw</button>
+      <div id="wd-history-list" class="mt-4"></div>
+    </div>
+    <div id="page-admin" class="page">
+      <h2 class="text-xl font-black text-red-400 mb-3">Admin Panel</h2>
+      <div id="admin-payments-list"></div>
+      <div id="admin-withdrawals-list" class="mt-4"></div>
+      <div id="admin-referrals-list" class="mt-4"></div>
+    </div>
+  </div>
+
+  <div style="background:#060f2a; border-top:1px solid rgba(20,40,160,0.4); display:flex;">
+    <button class="nav-btn active" data-page="home" onclick="showPage('home')"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button class="nav-btn" data-page="products" onclick="showPage('products')"><i class="fa-solid fa-store"></i><span>Products</span></button>
+    <button class="nav-btn" data-page="myproducts" onclick="showPage('myproducts')"><i class="fa-solid fa-box"></i><span>My Items</span></button>
+    <button class="nav-btn" data-page="team" onclick="showPage('team')"><i class="fa-solid fa-users"></i><span>Team</span></button>
+    <button class="nav-btn" data-page="withdraw" onclick="showPage('withdraw')"><i class="fa-solid fa-money-bill"></i><span>Withdraw</span></button>
+    <button class="nav-btn" data-page="admin" onclick="showPage('admin')"><i class="fa-solid fa-gear"></i><span>Admin</span></button>
+  </div>
+</div>
+
+</body></html>
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SAMSUNG EARNING PLATFORM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"/>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, update, push, onValue, off, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAaY2U3vOnByMrjhf4np-DsFvrXCN3Zbbc",
+      authDomain: "samsungearning-78ab1.firebaseapp.com",
+      databaseURL: "https://samsungearning-78ab1-default-rtdb.firebaseio.com",
+      projectId: "samsungearning-78ab1",
+      storageBucket: "samsungearning-78ab1.firebasestorage.app",
+      messagingSenderId: "927792398209",
+      appId: "1:927792398209:web:2cdb7686e68384888df280"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    window._FB = { auth, db, ref, set, get, update, push, onValue, off, remove };
+    window._currentUser = null; window._userData = null; window._paymentTimer = null;
+
+    window.PACKAGES = [
+      { id:'p1',  name:'Galaxy A05',      price:15000,    daily:3000,     days:60,  group:1,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a055fzkdmid/gallery/levant-galaxy-a05-sm-a055fzkdmid-thumb-538182131' },
+      { id:'p2',  name:'Galaxy A15',      price:30000,    daily:7000,     days:60,  group:1,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a155fzkdmid/gallery/levant-galaxy-a15-sm-a155fzkdmid-thumb-539432698' },
+      { id:'p3',  name:'Galaxy A25',      price:50000,    daily:12500,    days:180, group:2,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a256ezydmid/gallery/levant-galaxy-a25-5g-sm-a256ezydmid-thumb-539432788' },
+      { id:'p4',  name:'Galaxy A35',      price:100000,   daily:26000,    days:180, group:2,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a356ezydmid/gallery/levant-galaxy-a35-5g-sm-a356ezydmid-thumb-540016756' },
+      { id:'p5',  name:'Galaxy A55',      price:150000,   daily:40000,    days:180, group:2,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-a556ezydmid/gallery/levant-galaxy-a55-5g-sm-a556ezydmid-thumb-540016922' },
+      { id:'p6',  name:'Galaxy S23 FE',   price:300000,   daily:90000,    days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s711blbdmid/gallery/levant-galaxy-s23-fe-sm-s711blbdmid-thumb-537998015' },
+      { id:'p7',  name:'Galaxy S24',      price:500000,   daily:160000,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s921bzkdmid/gallery/levant-galaxy-s24-sm-s921bzkdmid-thumb-539432418' },
+      { id:'p8',  name:'Galaxy S24+',     price:800000,   daily:280200,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s926bzkdmid/gallery/levant-galaxy-s24-plus-sm-s926bzkdmid-thumb-539432538' },
+      { id:'p9',  name:'Galaxy S24 Ultra',price:1200000,  daily:450000,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-s928bzkhmid/gallery/levant-galaxy-s24-ultra-sm-s928bzkhmid-thumb-539432638' },
+      { id:'p10', name:'Galaxy Z Flip6',  price:1300000,  daily:600000,   days:210, group:3,  img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-f741bzadmid/gallery/levant-galaxy-z-flip6-sm-f741bzadmid-thumb-540013498' },
+      { id:'p11', name:'Galaxy Z Fold6 VIP', price:2000000, daily:8805000, days:210,group:3, img:'https://images.samsung.com/is/image/samsung/p6pim/levant/sm-f956bzsdmid/gallery/levant-galaxy-z-fold6-sm-f956bzsdmid-thumb-540013598' },
+    ];
+
+    function fmtUGX(n){ return (Math.round(n||0)).toLocaleString()+' UGX'; }
+    function genCode(len=8){ return Math.random().toString(36).substr(2,len).toUpperCase(); }
+    function getReferralLink(code){ return window.location.origin + window.location.pathname + '?ref='+code; }
+    function getReferralFromURL(){ const u = new URL(window.location.href); return u.searchParams.get('ref') || null; }
+    window.fmtUGX = fmtUGX;
+
+    onAuthStateChanged(auth, async (user) => {
+      document.getElementById('init-loading').style.display = 'none';
+      if(user){
+        window._currentUser = user;
+        const snap = await get(ref(db,'users/'+user.uid)); if(snap.exists()) window._userData = snap.val();
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'flex';
+        showPage('home'); renderDashboard();
+        if(!window._userData.seenWelcome){ showModal('welcome-modal'); }
+      } else {
+        window._currentUser = null; window._userData = null;
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('app-screen').style.display = 'none';
+      }
+    });
+
+    // ============ AUTH ============
+    window.doRegister = async function(){
+      const name = document.getElementById('reg-name').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const pass = document.getElementById('reg-pass').value.trim();
+      if(!name||!phone||!pass){ alert('Fill all'); return; }
+      const email = phone+'@samsung-earn.com';
+      showLoader(true);
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(cred.user, {displayName: name});
+      const uid = cred.user.uid; const code = genCode(8); const refCode = getReferralFromURL(); let referredBy = null;
+      if(refCode){ const rsSnap = await get(ref(db,'referralCodes/'+refCode)); if(rsSnap.exists()) referredBy = rsSnap.val().uid; }
+      await set(ref(db,'users/'+uid), { name, phone, email, uid, wallet: 7000, todayEarnings:0, totalEarnings:0, activeInvestments:0, totalInvestments:0, referralEarnings:0, totalWithdrawals:0, referralCode: code, referredBy: referredBy || null, hasPurchased:false, lastCheckIn:0, seenWelcome:false, createdAt: Date.now() });
+      await set(ref(db,'referralCodes/'+code), {uid, name, phone});
+      if(referredBy){ await push(ref(db,'referrals/'+referredBy), {childUid: uid, childName: name, childPhone: phone, paid:false, at: Date.now()}); }
+      showLoader(false); showToast('Account created +7000 UGX');
+    };
+
+    window.doLogin = async function(){
+      const phone = document.getElementById('login-phone').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      const email = phone+'@samsung-earn.com';
+      showLoader(true); await signInWithEmailAndPassword(auth, email, pass); showLoader(false);
+    };
+
+    window.doLogout = async function(){ await signOut(auth); };
+
+    // ============ PAGES + RENDER ============
+    window.showPage = function(page){
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      document.getElementById('page-'+page).classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelector(`.nav-btn[data-page="${page}"]`).classList.add('active');
+      if(page==='products') renderPackages();
+      if(page==='myproducts') renderMyProducts();
+      if(page==='team') renderTeam();
+      if(page==='mine') renderMine();
+      if(page==='withdraw') { renderWithdrawalHistory(); populateWalletWithdraw(); }
+      if(page==='admin') { renderAdminPayments(); renderAdminWithdrawals(); renderAdminReferrals(); }
+    };
+
+    window.renderDashboard = function(){
+      const d = window._userData; if(!d) return;
+      document.getElementById('home-name').textContent = d.name;
+      document.getElementById('home-wallet').textContent = fmtUGX(d.wallet);
+      document.getElementById('stat-today').textContent = fmtUGX(d.todayEarnings);
+      document.getElementById('stat-total').textContent = fmtUGX(d.totalEarnings);
+    };
+
+    // ============ CHECK IN ============
+    window.doCheckIn = async function(){
+      const today = new Date().toDateString();
+      if(window._userData.lastCheckIn === today){ showToast('Already checked in today'); return; }
+      const bonus = 100;
+      await update(ref(db,'users/'+window._currentUser.uid), {
+        wallet: (window._userData.wallet||0)+bonus, todayEarnings: (window._userData.todayEarnings||0)+bonus, totalEarnings: (window._userData.totalEarnings||0)+bonus, lastCheckIn: today
+      });
+      showToast('Check-In +100 UGX'); renderDashboard();
+    };
+
+    // ============ PACKAGES + BUY WITH 15MIN TIMER ============
+    window.renderPackages = function(){
+      const cont = document.getElementById('packages-list'); cont.innerHTML='';
+      PACKAGES.forEach(p=>{ 
+        cont.innerHTML += `<div class="card p-3 mb-3 rounded-xl">
+          <img src="${p.img}" class="w-full h-24 object-contain mb-2 rounded">
+          <div class="font-bold">${p.name}</div>
+          <div class="text-sm">Price: ${fmtUGX(p.price)} | Daily: ${fmtUGX(p.daily)}</div>
+          <button onclick="startBuyFlow('${p.id}')" class="btn-primary w-full mt-2 py-2 rounded-xl">Buy Now</button>
+        </div>`; 
+      });
+    };
+
+    window.startBuyFlow = function(pkgId){
+      const pkg = PACKAGES.find(p=>p.id===pkgId);
+      document.getElementById('pay-pkg-name').textContent = pkg.name;
+      document.getElementById('pay-pkg-amount').textContent = fmtUGX(pkg.price);
+      showModal('payment-modal');
+      startPaymentTimer(15*60);
+      window._currentBuyPkg = pkgId;
+    };
+
+    window.startPaymentTimer = function(seconds){
+      clearInterval(window._paymentTimer);
+      window._paymentTimer = setInterval(()=>{
+        seconds--;
+        const m = Math.floor(seconds/60); const s = seconds%60;
+        document.getElementById('payment-timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+        if(seconds<=0){ clearInterval(window._paymentTimer); hideModal('payment-modal'); showToast('Payment time expired'); }
+      },1000);
+    };
+
+    window.confirmPayment = async function(){
+      clearInterval(window._paymentTimer); hideModal('payment-modal');
+      const pkgId = window._currentBuyPkg; const uid = window._currentUser.uid; const pkg = PACKAGES.find(p=>p.id===pkgId);
+      const payRef = push(ref(db,'pendingPayments'));
+      await set(payRef, {
+        userId:uid, userName:window._userData.name, packageId:pkgId, packageName:pkg.name,
+        amount:pkg.price, dailyEarning:pkg.daily, days:pkg.days,
+        submittedAt:Date.now(), status:'pending'
+      });
+      showToast('Payment submitted. Wait for admin');
+    };
+
+    window.renderMyProducts = async function(){
+      const uid = window._currentUser.uid; const cont = document.getElementById('my-products-list');
+      const snap = await get(ref(db,'packages')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,p])=>p.userId===uid).forEach(([k,p])=>{
+        const daysLeft = Math.max(0, Math.ceil((p.expiryDate - Date.now())/86400000));
+        html += `<div class="card p-3 mb-3 rounded-xl"><div class="font-bold">${p.packageName}</div><div>${daysLeft} days left | ${fmtUGX(p.dailyEarning)}/day</div></div>`;
+      });
+      cont.innerHTML = html||'No packages yet';
+    };
+
+    // ============ MINE PAGE ============
+    window.renderMine = function(){
+      const d = window._userData; if(!d) return;
+      document.getElementById('mine-name').textContent = d.name;
+      document.getElementById('mine-phone').textContent = d.phone;
+      document.getElementById('mine-wallet').textContent = fmtUGX(d.wallet);
+    };
+
+    // ============ WITHDRAW ============
+    window.populateWalletWithdraw = function(){
+      const d = window._userData; const el = document.getElementById('wd-wallet-info');
+      if(d && d.walletPhone){ el.innerHTML = `${d.walletType}: ${d.walletPhone}`; } 
+      else { el.innerHTML = 'No wallet. Add in Mine'; }
+    };
+
+    window.doWithdraw = async function(){
+      const amt = parseFloat(document.getElementById('wd-amount').value)||0;
+      if(amt<7000){ showToast('Min 7000'); return; }
+      if(window._userData.wallet < amt){ showToast('Low balance'); return; }
+      const wdRef = push(ref(db,'withdrawals'));
+      await set(wdRef, {
+        userId:window._currentUser.uid, userName:window._userData.name, userPhone:window._userData.phone,
+        amount:amt, netAmount:Math.round(amt*0.82), status:'pending', requestedAt:Date.now()
+      });
+      showToast('Withdrawal requested'); document.getElementById('wd-amount').value='';
+    };
+
+    window.renderWithdrawalHistory = async function(){
+      const uid = window._currentUser.uid; const cont = document.getElementById('wd-history-list');
+      const snap = await get(ref(db,'withdrawals')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,w])=>w.userId===uid).reverse().forEach(([k,w])=>{
+        html += `<div class="card p-2 mb-2 text-sm">${fmtUGX(w.amount)} - ${w.status}</div>`;
+      });
+      cont.innerHTML = html||'No withdrawals';
+    };
+
+    // ============ TEAM + REFERRAL ============
+    window.renderTeam = async function(){
+      const uid = window._currentUser.uid; const cont = document.getElementById('team-stats');
+      const snap = await get(ref(db,'referrals/'+uid)); let html=''; let count=0;
+      if(snap.exists()) Object.entries(snap.val()).forEach(([k,r])=>{
+        count++;
+        html += `<div class="card p-3 mb-2 rounded-xl text-sm">
+          <div>Name: ${r.childName}</div>
+          <div>Phone: ${r.childPhone}</div>
+          <div>Status: ${r.paid?'✅ Paid':'⏳ Unpaid'}</div>
+        </div>`;
+      });
+      cont.innerHTML = `<div class="font-bold mb-2">Total Referrals: ${count}</div>` + html;
+      document.getElementById('referral-link').value = getReferralLink(window._userData.referralCode);
+    };
+
+    // ============ ADMIN FUNCTIONS ============
+    window.adminDeleteMessage = async function(path, key){
+      if(confirm('Delete?')){ await remove(ref(db, path+'/'+key)); showToast('Deleted'); renderAdminPayments(); renderAdminWithdrawals(); }
+    };
+
+    window.adminApprovePayment = async function(key){
+      const snap = await get(ref(db,'pendingPayments/'+key)); if(!snap.exists()) return;
+      const pp = snap.val(); const uid = pp.userId; const now = Date.now(); const expiry = now + pp.days * 86400000;
+      const pkgRef = push(ref(db,'packages'));
+      await set(pkgRef, {
+        userId:uid, packageId:pp.packageId, packageName:pp.packageName, amount:pp.amount, dailyEarning:pp.dailyEarning, days:pp.days,
+        startDate:now, expiryDate:expiry, lastPaidAt:now, status:'active'
+      });
+      await update(ref(db,'pendingPayments/'+key), {status:'approved'});
+      await update(ref(db,'users/'+uid), {activeInvestments: (window._userData.activeInvestments||0)+1, totalInvestments: (window._userData.totalInvestments||0)+1, hasPurchased:true, newUserBonusLocked:false});
+      await payReferralCommissions(uid, pp.amount);
+      showToast('Approved + Referrals Paid'); renderAdminPayments();
+    };
+
+    window.payReferralCommissions = async function(buyerUid, investAmount){
+      const snap = await get(ref(db,'users/'+buyerUid)); if(!snap.exists()) return;
+      const buyer = snap.val(); let current = buyer.referredBy; let level = 1; const pcts = [0.30, 0.02, 0.01];
+      while(current && level<=3){
+        const uSnap = await get(ref(db,'users/'+current)); if(!uSnap.exists()) break;
+        const amount = Math.round(investAmount * pcts[level-1]);
+        const ud = uSnap.val();
+        await update(ref(db,'users/'+current), {
+          wallet:(ud.wallet||0)+amount, referralEarnings:(ud.referralEarnings||0)+amount, totalEarnings:(ud.totalEarnings||0)+amount
+        });
+        current = ud.referredBy; level++;
+      }
+    };
+
+    window.adminMarkReferralPaid = async function(adminUid, refKey, childUid, amount){
+      const uSnap = await get(ref(db,'users/'+childUid)); if(!uSnap.exists()) return;
+      const ud = uSnap.val();
+      await update(ref(db,'users/'+childUid), {
+        wallet:(ud.wallet||0)+amount, referralEarnings:(ud.referralEarnings||0)+amount, totalEarnings:(ud.totalEarnings||0)+amount
+      });
+      await update(ref(db,'referrals/'+adminUid+'/'+refKey), {paid: true, paidAt: Date.now()});
+      showToast('Paid '+fmtUGX(amount)+' to '+ud.name); renderAdminReferrals();
+    };
+
+    window.adminApproveWithdrawal = async function(key){
+      const snap = await get(ref(db,'withdrawals/'+key)); if(!snap.exists()) return;
+      const wd = snap.val(); const uSnap = await get(ref(db,'users/'+wd.userId)); const ud = uSnap.val();
+      await update(ref(db,'users/'+wd.userId), {
+        wallet: Math.max(0,(ud.wallet||0)-wd.amount), totalWithdrawals:(ud.totalWithdrawals||0)+wd.netAmount
+      });
+      await update(ref(db,'withdrawals/'+key), {status:'approved'}); showToast('Withdrawal Approved'); renderAdminWithdrawals();
+    };
+
+    // ============ ADMIN RENDERS ============
+    window.renderAdminPayments = async function(){
+      const cont = document.getElementById('admin-payments-list'); const snap = await get(ref(db,'pendingPayments')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,p])=>p.status==='pending').forEach(([k,p])=>{
+        html += `<div class="card p-3 mb-2 rounded-xl">
+          <div>${p.userName} - ${fmtUGX(p.amount)}</div>
+          <button onclick="adminApprovePayment('${k}')" class="bg-green-700 text-xs px-3 py-1 rounded mt-1">Approve</button>
+          <button onclick="adminDeleteMessage('pendingPayments','${k}')" class="bg-red-700 text-xs px-3 py-1 rounded mt-1 ml-2">Delete</button>
+        </div>`;
+      }); cont.innerHTML = html||'No pending';
+    };
+
+    window.renderAdminWithdrawals = async function(){
+      const cont = document.getElementById('admin-withdrawals-list'); const snap = await get(ref(db,'withdrawals')); let html='';
+      if(snap.exists()) Object.entries(snap.val()).filter(([k,w])=>w.status==='pending').forEach(([k,w])=>{
+        html += `<div class="card p-3 mb-2 rounded-xl">
+          <div>${w.userName} - ${fmtUGX(w.amount)}</div>
+          <button onclick="adminApproveWithdrawal('${k}')" class="bg-green-700 text-xs px-3 py-1 rounded mt-1">Pay</button>
+          <button onclick="adminDeleteMessage('withdrawals','${k}')" class="bg-red-700 text-xs px-3 py-1 rounded mt-1 ml-2">Delete</button>
+        </div>`;
+      }); cont.innerHTML = html||'No pending';
+    };
+
+    window.renderAdminReferrals = async function(){
+      const cont = document.getElementById('admin-referrals-list'); const snap = await get(ref(db,'referrals')); let html='<h3 class="font-bold mt-4">Referrals</h3>';
+      if(snap.exists()) Object.entries(snap.val()).forEach(([adminUid, list])=>{
+        Object.entries(list).forEach(([key, r])=>{
+          const commission = 1000;
+          html += `<div class="card p-3 mb-2 rounded-xl text-sm">
+            <div>Referred: ${r.childName} - ${r.childPhone}</div>
+            <div>Status: ${r.paid?'✅ Paid':'⏳ Unpaid'}</div>
+            ${!r.paid ? `<button onclick="adminMarkReferralPaid('${adminUid}','${key}','${r.childUid}',${commission})" class="bg-blue-700 text-xs px-3 py-1 rounded mt-1">Mark Paid ${fmtUGX(commission)}</button>` : ''}
+          </div>`;
+        });
+      }); cont.innerHTML = html;
+    };
+
+    // ============ MODALS ============
+    window.showModal = function(id){ document.getElementById(id).classList.add('show'); };
+    window.hideModal = function(id){ document.getElementById(id).classList.remove('show'); if(id==='welcome-modal'){ update(ref(db,'users/'+window._currentUser.uid),{seenWelcome:true}); } };
+    window.showToast = function(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); };
+    window.showLoader = function(v){ document.getElementById('loader-overlay').classList.toggle('show', v); };
+  </script>
+
+  <style>
+    body{ font-family:'Inter',sans-serif; background:#030d1f; color:#fff; margin:0; }
+    .gradient-header{ background:linear-gradient(135deg,#1428A0,#0d5cda); }
+    .card{ background:rgba(20,40,160,0.1); border:1px solid rgba(20,40,160,0.25); }
+    .btn-primary{ background:linear-gradient(135deg,#1428A0,#0d5cda); color:#fff; font-weight:700; border:none; cursor:pointer; }
+    .page{ display:none; flex-direction:column; overflow-y:auto; flex:1; padding:16px; padding-bottom:80px; }
+    .page.active{ display:flex; }
+    .nav-btn{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 0; cursor:pointer; color:#4a5568; font-size:10px; gap:3px; border:none; background:none; }
+    .nav-btn.active{ color:#1d6af5; }
+    .input-field{ background:rgba(20,40,160,0.12); border:1px solid rgba(29,106,245,0.3); border-radius:12px; padding:14px 16px; color:#fff; width:100%; margin-bottom:10px; }
+    .loader-overlay{ position:fixed; inset:0; background:rgba(3,13,31,0.85); z-index:2000; display:none; align-items:center; justify-content:center; }
+    .loader-overlay.show{ display:flex; }
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+    .modal.show{ display:flex; }
+    .modal-box{ background:#0a1533; border-radius:20px; padding:20px; width:100%; max-width:400px; }
+    #toast{ position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:#1428A0; padding:12px 20px; border-radius:12px; z-index:3000; opacity:0; transition:0.3s; }
+    #toast.show{ opacity:1; }
+  </style>
+</head>
+<body>
+
+<div id="init-loading" style="position:fixed;inset:0;background:#030d1f;z-index:9999;display:flex;align-items:center;justify-content:center;">Loading...</div>
+<div id="loader-overlay" class="loader-overlay">Loading...</div>
+<div id="toast"></div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none; flex-direction:column; min-height:100vh; padding:20px;">
+  <h1 class="text-2xl font-black text-center mb-5">SAMSUNG EARNING</h1>
+  <div id="login-form">
+    <input id="login-phone" type="tel" placeholder="Phone 07XXXXXXXX" class="input-field"/>
+    <input id="login-pass" type="password" placeholder="Password" class="input-field"/>
+    <button onclick="doLogin()" class="btn-primary w-full py-4 rounded-2xl">Login</button>
+  </div>
+  <div id="register-form" class="mt-5">
+    <input id="reg-name" type="text" placeholder="Full Name" class="input-field"/>
+    <input id="reg-phone" type="tel" placeholder="Phone 07XXXXXXXX" class="input-field"/>
+    <input id="reg-pass" type="password" placeholder="Password" class="input-field"/>
+    <button onclick="doRegister()" class="btn-primary w-full py-4 rounded-2xl">Register</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none; flex-direction:column; height:100vh;">
+  <div style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+    
+    <div id="page-home" class="page active">
+      <div class="gradient-header rounded-2xl p-4 mb-4">
+        <h1 class="text-2xl font-black">Hi, <span id="home-name">User</span></h1>
+        <div class="mt-2">Balance: <span id="home-wallet">0 UGX</span></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="card rounded-xl p-3"><div class="text-xs">Today</div><div class="font-bold" id="stat-today">0 UGX</div></div>
+        <div class="card rounded-xl p-3"><div class="text-xs">Total</div><div class="font-bold" id="stat-total">0 UGX</div></div>
+      </div>
+    </div>
+
+    <div id="page-products" class="page"><h2 class="text-xl font-black mb-3">Products</h2><div id="packages-list"></div></div>
+    <div id="page-myproducts" class="page"><h2 class="text-xl font-black mb-3">My Products</h2><div id="my-products-list"></div></div>
+    <div id="page-team" class="page"><h2 class="text-xl font-black mb-3">Team</h2><input id="referral-link" readonly class="input-field"><div id="team-stats"></div></div>
+    <div id="page-withdraw" class="page">
+      <h2 class="text-xl font-black mb-3">Withdraw</h2>
+      <div id="wd-wallet-info" class="card p-3 mb-3"></div>
+      <input id="wd-amount" type="number" placeholder="Amount Min 7000" class="input-field"/>
+      <button onclick="doWithdraw()" class="btn-primary w-full py-3 rounded-xl">Withdraw</button>
+      <div id="wd-history-list" class="mt-4"></div>
+    </div>
+    <div id="page-mine" class="page">
+      <h2 class="text-xl font-black mb-3">Mine</h2>
+      <div class="card p-4 mb-3"><div id="mine-name"></div><div id="mine-phone" class="text-sm"></div><div>Balance: <span id="mine-wallet"></span></div></div>
+      <button onclick="doCheckIn()" class="btn-primary w-full py-3 rounded-xl mb-3">Daily Check-In +100 UGX</button>
+      <button onclick="showModal('rules-modal')" class="card w-full py-3 rounded-xl">Platform Rules</button>
+      <button onclick="doLogout()" class="bg-red-700 w-full py-3 rounded-xl mt-3">Logout</button>
+    </div>
+    <div id="page-admin" class="page">
+      <h2 class="text-xl font-black text-red-400 mb-3">Admin Panel</h2>
+      <div id="admin-payments-list"></div>
+      <div id="admin-withdrawals-list" class="mt-4"></div>
+      <div id="admin-referrals-list" class="mt-4"></div>
+    </div>
+  </div>
+
+  <div style="background:#060f2a; border-top:1px solid rgba(20,40,160,0.4); display:flex;">
+    <button class="nav-btn active" data-page="home" onclick="showPage('home')"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button class="nav-btn" data-page="products" onclick="showPage('products')"><i class="fa-solid fa-store"></i><span>Products</span></button>
+    <button class="nav-btn" data-page="myproducts" onclick="showPage('myproducts')"><i class="fa-solid fa-box"></i><span>My Items</span></button>
+    <button class="nav-btn" data-page="team" onclick="showPage('team')"><i class="fa-solid fa-users"></i><span>Team</span></button>
+    <button class="nav-btn" data-page="withdraw" onclick="showPage('withdraw')"><i class="fa-solid fa-money-bill"></i><span>Withdraw</span></button>
+    <button class="nav-btn" data-page="mine" onclick="showPage('mine')"><i class="fa-solid fa-user"></i><span>Mine</span></button>
+    <button class="nav-btn" data-page="admin" onclick="showPage('admin')"><i class="fa-solid fa-gear"></i><span>Admin</span></button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="welcome-modal" class="modal"><div class="modal-box"><h2 class="font-black text-xl mb-3">Welcome to Samsung Earning</h2><p>Register and get +7000 UGX. Buy packages to earn daily.</p><button onclick="hideModal('welcome-modal')" class="btn-primary w-full py-3 rounded-xl mt-4">Got it</button></div></div>
+<div id="rules-modal" class="modal"><div class="modal-box"><h2 class="font-black text-xl mb-3">Platform Rules</h2><p>1. Min withdraw 7000 UGX. 2. Fee 18%. 3. Daily earnings auto. 4. Referrals 30/2/1%</p><button onclick="hideModal('rules-modal')" class="btn-primary w-full py-3 rounded-xl mt-4">Close</button></div></div>
+<div id="payment-modal" class="modal"><div class="modal-box"><h2 class="font-black text-xl mb-3">Complete Payment</h2><p>Package: <span id="pay-pkg-name"></span></p><p>Amount: <span id="pay-pkg-amount"></span></p><p>Time left: <span id="payment-timer">15:00</span></p><button onclick="confirmPayment()" class="btn-primary w-full py-3 rounded-xl mt-4">I Have Paid</button><button onclick="hideModal('payment-modal')" class="bg-gray-700 w-full py-3 rounded-xl mt-2">Cancel</button></div></div>
+
+</body></html>
 

@@ -1,1 +1,102 @@
 
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SAMSUNG EARNING</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body{background:#030d1f; color:#fff; font-family:system-ui; margin:0; padding:0}
+.box{background:rgba(20,40,160,0.1); border:1px solid rgba(20,40,160,0.3); border-radius:16px; padding:20px;}
+input{background:#1428A0; padding:14px; border-radius:12px; margin-bottom:12px; width:100%; border:1px solid rgba(29,106,245,0.3); color:#fff; outline:none;}
+button{background:linear-gradient(135deg,#1428A0,#0d5cda); padding:16px; border-radius:16px; width:100%; font-weight:700; border:none; color:#fff; cursor:pointer;}
+</style>
+</head><body style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;">
+
+<div id="auth" class="box" style="width:100%; max-width:400px;">
+  <h1 class="text-2xl font-black text-center mb-6">SAMSUNG EARNING</h1>
+  
+  <div id="login-box">
+    <input id="login-phone" type="tel" placeholder="Phone: 07XXXXXXXX"/>
+    <input id="login-pass" type="password" placeholder="Password"/>
+    <button onclick="doLogin()">Login</button>
+    <p onclick="showReg()" style="text-align:center; color:#94a3b8; margin-top:12px; cursor:pointer;">No account? Register</p>
+  </div>
+
+  <div id="reg-box" style="display:none;">
+    <input id="reg-name" placeholder="Full Name"/>
+    <input id="reg-phone" type="tel" placeholder="Phone: 07XXXXXXXX"/>
+    <input id="reg-pass" type="password" placeholder="Password"/>
+    <button onclick="doRegister()">Create Account +7000 UGX</button>
+    <p onclick="showLogin()" style="text-align:center; color:#94a3b8; margin-top:12px; cursor:pointer;">Have account? Login</p>
+  </div>
+</div>
+
+<div id="app" class="box" style="width:100%; max-width:400px; display:none;">
+  <h2 id="name" class="text-xl font-black mb-2">Hi</h2>
+  <p class="text-gray-400 text-sm mb-4">Wallet Balance</p>
+  <h3 id="wallet" class="text-3xl font-black text-yellow-400 mb-6">0 UGX</h3>
+  <button onclick="logout()" style="background:#dc2626;">Logout</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// YOUR FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyAaY2U3vOnByMrjhf4np-DsFvrXCN3Zbbc",
+  authDomain: "samsungearning-78ab1.firebaseapp.com",
+  databaseURL: "https://samsungearning-78ab1-default-rtdb.firebaseio.com",
+  projectId: "samsungearning-78ab1",
+  storageBucket: "samsungearning-78ab1.firebasestorage.app",
+  messagingSenderId: "927792398209",
+  appId: "1:927792398209:web:2cdb7686e68384888df280"
+};
+
+const app = initializeApp(firebaseConfig); 
+const auth = getAuth(app); 
+const db = getDatabase(app);
+
+function showReg(){ document.getElementById('login-box').style.display='none'; document.getElementById('reg-box').style.display='block'; }
+function showLogin(){ document.getElementById('login-box').style.display='block'; document.getElementById('reg-box').style.display='none'; }
+window.showReg = showReg; window.showLogin = showLogin;
+
+window.doLogin = async () => {
+  const p = document.getElementById('login-phone').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if(!p || !pass) return alert('Fill all fields');
+  try{ await signInWithEmailAndPassword(auth, p+'@samsung.app', pass); }
+  catch(e){ alert('Login failed: '+e.message); }
+}
+
+window.doRegister = async () => {
+  const n = document.getElementById('reg-name').value.trim();
+  const p = document.getElementById('reg-phone').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  if(!n || !p || !pass) return alert('Fill all fields');
+  try{
+    const res = await createUserWithEmailAndPassword(auth, p+'@samsung.app', pass);
+    await set(ref(db,'users/'+res.user.uid), {name:n, phone:p, wallet:7000, createdAt: Date.now()});
+    alert('Account created! +7000 UGX bonus');
+  }catch(e){ alert('Register failed: '+e.message); }
+}
+
+window.logout = () => signOut(auth);
+
+onAuthStateChanged(auth, async (user) => {
+  if(user){
+    document.getElementById('auth').style.display='none';
+    document.getElementById('app').style.display='block';
+    const snap = await get(ref(db,'users/'+user.uid));
+    if(snap.exists()){
+      const d = snap.val();
+      document.getElementById('name').textContent = 'Hi, '+d.name;
+      document.getElementById('wallet').textContent = (d.wallet||0).toLocaleString() + ' UGX';
+    }
+  } else {
+    document.getElementById('auth').style.display='block';
+    document.getElementById('app').style.display='none';
+  }
+});
+</script>
+</body></html>

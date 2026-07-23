@@ -1,1 +1,180 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ADMIN - SAMSUNG</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body{background:#030d1f; color:#fff; font-family:system-ui; padding:20px}
+.card{background:rgba(20,40,160,0.1); border:1px solid rgba(20,40,160,0.3); border-radius:16px; padding:16px; margin-bottom:12px}
+.btn-green{background:#22c55e; color:#fff; padding:10px; border-radius:8px; font-weight:700; border:none; width:100%; cursor:pointer;}
+.btn-red{background:#dc2626; color:#fff; padding:10px; border-radius:8px; font-weight:700; border:none; width:100%; cursor:pointer;}
+.tab{flex:1; padding:12px; border-radius:10px; font-weight:700; cursor:pointer; border:none; background:rgba(20,40,160,0.2); color:#94a3b8}
+.tab.active{background:#1428A0; color:#fff}
+</style>
+</head><body>
 
+<div class="flex justify-between items-center mb-4">
+  <h1 class="text-2xl font-black text-red-400">Admin Panel</h1>
+  <a href="./index.html" class="text-gray-400 border border-gray-700 px-3 py-2 rounded-lg text-sm">Back to App</a>
+</div>
+
+<!-- TABS -->
+<div class="flex gap-2 mb-4">
+  <button onclick="showTab('users')" id="tab-users" class="tab active">Users</button>
+  <button onclick="showTab('payments')" id="tab-payments" class="tab">Payments</button>
+  <button onclick="showTab('withdrawals')" id="tab-withdrawals" class="tab">Withdrawals</button>
+</div>
+
+<!-- USERS TAB -->
+<div id="content-users">
+  <h2 class="font-bold mb-3">All Users</h2>
+  <div id="users-list">Loading...</div>
+</div>
+
+<!-- PAYMENTS TAB -->
+<div id="content-payments" style="display:none;">
+  <h2 class="font-bold mb-3">Pending Payments</h2>
+  <div id="payments-list">Loading...</div>
+</div>
+
+<!-- WITHDRAWALS TAB -->
+<div id="content-withdrawals" style="display:none;">
+  <h2 class="font-bold mb-3">Pending Withdrawals</h2>
+  <div id="withdrawals-list">Loading...</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, get, update, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// YOUR FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyAaY2U3vOnByMrjhf4np-DsFvrXCN3Zbbc",
+  authDomain: "samsungearning-78ab1.firebaseapp.com",
+  databaseURL: "https://samsungearning-78ab1-default-rtdb.firebaseio.com",
+  projectId: "samsungearning-78ab1"
+};
+const app = initializeApp(firebaseConfig); 
+const db = getDatabase(app);
+
+function fmt(n){ return (Math.round(n||0)).toLocaleString()+' UGX'; }
+
+window.showTab = function(tab){
+  ['users','payments','withdrawals'].forEach(t=>{
+    document.getElementById('content-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+  if(tab==='users') loadUsers();
+  if(tab==='payments') loadPayments();
+  if(tab==='withdrawals') loadWithdrawals();
+}
+
+// LOAD USERS + WHO REFERRED WHO
+function loadUsers(){
+  onValue(ref(db,'users'), snap=>{
+    let html = '';
+    if(snap.exists()){
+      const all = snap.val();
+      Object.entries(all).reverse().forEach(([uid,u])=>{
+        let referredBy = 'None';
+        if(u.referredBy && all[u.referredBy]) referredBy = all[u.referredBy].name + ' - ' + all[u.referredBy].phone;
+        
+        html += `<div class="card">
+          <div class="flex justify-between">
+            <div>
+              <div class="font-bold text-lg">${u.name}</div>
+              <div class="text-xs text-gray-400">${u.phone}</div>
+            </div>
+            <div class="text-right">
+              <div class="font-bold text-yellow-400">${fmt(u.wallet)}</div>
+              <div class="text-xs">Wallet</div>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-blue-900/30 text-xs">
+            <div><b>Referred By:</b> ${referredBy}</div>
+            <div><b>Referral Earn:</b> ${fmt(u.referralEarnings||0)}</div>
+          </div>
+        </div>`;
+      });
+    }
+    document.getElementById('users-list').innerHTML = html || 'No users yet';
+  });
+}
+
+// LOAD PAYMENTS
+function loadPayments(){
+  onValue(ref(db,'pendingPayments'), snap=>{
+    let html = '';
+    if(snap.exists()){
+      const list = Object.entries(snap.val()).filter(([k,p])=>p.status==='pending').reverse();
+      list.forEach(([key,p])=>{
+        html += `<div class="card">
+          <div class="font-bold">${p.userName}</div>
+          <div class="text-xs text-gray-400 mb-2">${p.userPhone}</div>
+          <div class="bg-blue-950/50 p-2 rounded text-sm mb-3">
+            Package: ${p.packageName}<br>
+            Amount: ${fmt(p.amount)}<br>
+            Pay Phone: ${p.paymentPhone}
+          </div>
+          <div class="flex gap-2">
+            <button onclick="approvePay('${key}')" class="btn-green">✓ Approve</button>
+            <button onclick="rejectPay('${key}')" class="btn-red">✗ Reject</button>
+          </div>
+        </div>`;
+      });
+    }
+    document.getElementById('payments-list').innerHTML = html || 'No pending payments';
+  });
+}
+
+window.approvePay = async function(key){
+  if(!confirm('Approve this payment?')) return;
+  const snap = await get(ref(db,'pendingPayments/'+key));
+  const p = snap.val();
+  await set(ref(db,'packages/'+key), {...p, status:'active', startDate:Date.now()});
+  await update(ref(db,'users/'+p.userId), {hasPurchased:true, activeInvestments:1});
+  await update(ref(db,'pendingPayments/'+key), {status:'approved'});
+  alert('Approved!');
+}
+window.rejectPay = async function(key){
+  await update(ref(db,'pendingPayments/'+key), {status:'rejected'});
+  alert('Rejected');
+}
+
+// LOAD WITHDRAWALS
+function loadWithdrawals(){
+  onValue(ref(db,'withdrawals'), snap=>{
+    let html = '';
+    if(snap.exists()){
+      const list = Object.entries(snap.val()).filter(([k,w])=>w.status==='pending').reverse();
+      list.forEach(([key,w])=>{
+        html += `<div class="card">
+          <div class="font-bold">${w.userName}</div>
+          <div class="text-xs text-gray-400 mb-2">${w.userPhone}</div>
+          <div class="text-sm mb-3">Request: ${fmt(w.amount)} | Send: ${fmt(w.netAmount)}</div>
+          <div class="flex gap-2">
+            <button onclick="approveWD('${key}')" class="btn-green">✓ Approve</button>
+            <button onclick="rejectWD('${key}')" class="btn-red">✗ Reject</button>
+          </div>
+        </div>`;
+      });
+    }
+    document.getElementById('withdrawals-list').innerHTML = html || 'No pending withdrawals';
+  });
+}
+
+window.approveWD = async function(key){
+  const snap = await get(ref(db,'withdrawals/'+key));
+  const w = snap.val();
+  const usnap = await get(ref(db,'users/'+w.userId));
+  const u = usnap.val();
+  await update(ref(db,'users/'+w.userId), {wallet:(u.wallet||0)-w.amount});
+  await update(ref(db,'withdrawals/'+key), {status:'approved'});
+  alert('Withdrawal Approved & Deducted');
+}
+window.rejectWD = async function(key){
+  await update(ref(db,'withdrawals/'+key), {status:'rejected'});
+}
+
+loadUsers();
+</script>
+</body></html>
